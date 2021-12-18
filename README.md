@@ -1,2 +1,2 @@
 # copper-coast
-Holding repo
+Toolset for performing common and useful aviation tasks using Python
