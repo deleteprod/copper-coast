@@ -14,7 +14,7 @@ working things out and substitution of values etc.
 from math import radians, cos, sin, asin, sqrt, degrees
 from prettytable import PrettyTable
 
-def get_origin_lat():
+def get_origin_lat() -> float:
     # Where are you for latitude?
     while True:
         origin_lat = input("Input the starting latitude in decimal degrees: \n")
@@ -29,7 +29,7 @@ def get_origin_lat():
             break
     return origin_lat
 
-def get_origin_lon():
+def get_origin_lon() -> float:
     # Where are you for longitude?
     while True:
         origin_lon = input("Input the origin longitude in decimal degrees: \n")
@@ -44,7 +44,7 @@ def get_origin_lon():
             break
     return origin_lon
 
-def get_dest_lat():
+def get_dest_lat() -> float:
     # Where are you going to, latitude?
     while True:
         dest_lat = input("Input the starting latitude in decimal degrees: \n")
@@ -59,7 +59,7 @@ def get_dest_lat():
             break
     return dest_lat
 
-def get_dest_lon():
+def get_dest_lon() -> float:
     # Where are you going to, longitude?
     while True:
         dest_lon = input("Input the origin longitude in decimal degrees: \n")
