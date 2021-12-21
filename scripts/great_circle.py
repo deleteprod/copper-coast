@@ -17,7 +17,7 @@ from prettytable import PrettyTable
 def get_origin_lat() -> float:
     # Where are you for latitude?
     while True:
-        origin_lat = input("Input the starting latitude in decimal degrees: \n")
+        origin_lat = input("Input the origin latitude in decimal degrees: \n")
         origin_lat = float(origin_lat)
         if origin_lat < -90:
             print("Invalid value for latitude, please try again.")
@@ -47,7 +47,7 @@ def get_origin_lon() -> float:
 def get_dest_lat() -> float:
     # Where are you going to, latitude?
     while True:
-        dest_lat = input("Input the starting latitude in decimal degrees: \n")
+        dest_lat = input("Input the destination latitude in decimal degrees: \n")
         dest_lat = float(dest_lat)
         if dest_lat < -90:
             print("Invalid value for latitude, please try again.")
@@ -62,7 +62,7 @@ def get_dest_lat() -> float:
 def get_dest_lon() -> float:
     # Where are you going to, longitude?
     while True:
-        dest_lon = input("Input the origin longitude in decimal degrees: \n")
+        dest_lon = input("Input the destination longitude in decimal degrees: \n")
         dest_lon = float(dest_lon)
         if dest_lon < -180:
             print("Invalid value for longitude, exiting now. Exiting now.")
