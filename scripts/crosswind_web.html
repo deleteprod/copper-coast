@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crosswind Calculator</title>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // Lucide icons as inline SVG components
+        const Wind = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"></path>
+            </svg>
+        );
+
+        const Plane = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"></path>
+            </svg>
+        );
+
+        const AlertTriangle = () => (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+        );
+
+        const CrosswindCalculator = () => {
+          const [runway, setRunway] = useState('');
+          const [windDir, setWindDir] = useState('');
+          const [windSpeed, setWindSpeed] = useState('');
+          const [results, setResults] = useState(null);
+          const [errors, setErrors] = useState({});
+
+          const validateRunway = (value) => {
+            const num = parseInt(value);
+            if (isNaN(num)) return "Please enter a valid number";
+            if (num < 1 || num > 36) return "Runway must be between 01 and 36";
+            return null;
+          };
+
+          const validateWindDir = (value) => {
+            const num = parseInt(value);
+            if (isNaN(num)) return "Please enter a valid number";
+            if (num < 1 || num > 360) return "Wind direction must be between 001 and 360";
+            if (value.length !== 3) return "Wind direction must be 3 digits (e.g., 270)";
+            return null;
+          };
+
+          const validateWindSpeed = (value) => {
+            const num = parseInt(value);
+            if (isNaN(num)) return "Please enter a valid number";
+            if (num < 0 || num > 50) return "Wind speed must be between 0 and 50 knots";
+            return null;
+          };
+
+          const calculateCrosswind = () => {
+            const newErrors = {};
+            
+            const runwayError = validateRunway(runway);
+            const windDirError = validateWindDir(windDir);
+            const windSpeedError = validateWindSpeed(windSpeed);
+
+            if (runwayError) newErrors.runway = runwayError;
+            if (windDirError) newErrors.windDir = windDirError;
+            if (windSpeedError) newErrors.windSpeed = windSpeedError;
+
+            if (Object.keys(newErrors).length > 0) {
+              setErrors(newErrors);
+              setResults(null);
+              return;
+            }
+
+            setErrors({});
+
+            const runwayNum = parseInt(runway);
+            const windDirNum = parseInt(windDir);
+            const windSpeedNum = parseInt(windSpeed);
+
+            const runwayDeg = runwayNum * 10;
+            let angleDiff = windDirNum - runwayDeg;
+
+            while (angleDiff > 180) angleDiff -= 360;
+            while (angleDiff < -180) angleDiff += 360;
+
+            const crosswind = Math.sin((angleDiff * Math.PI) / 180) * windSpeedNum;
+            const headwind = Math.cos((angleDiff * Math.PI) / 180) * windSpeedNum;
+
+            let crosswindDirection;
+            if (crosswind > 0) {
+              crosswindDirection = "From right to left";
+            } else if (crosswind < 0) {
+              crosswindDirection = "From left to right";
+            } else {
+              crosswindDirection = "No crosswind";
+            }
+
+            const isTailwind = headwind < 0;
+
+            setResults({
+              crosswind: Math.abs(crosswind).toFixed(2),
+              headwind: headwind.toFixed(2),
+              crosswindDirection,
+              isTailwind,
+              angle: angleDiff.toFixed(1)
+            });
+          };
+
+          const reset = () => {
+            setRunway('');
+            setWindDir('');
+            setWindSpeed('');
+            setResults(null);
+            setErrors({});
+          };
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-slate-900 p-4 md:p-8">
+              <div className="max-w-2xl mx-auto">
+                <div className="bg-white rounded-lg shadow-2xl overflow-hidden">
+                  <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Plane />
+                      <h1 className="text-3xl font-bold">Crosswind Calculator</h1>
+                    </div>
+                    <p className="text-blue-100">Calculate crosswind and headwind components for your departure</p>
+                  </div>
+
+                  <div className="p-6 space-y-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Runway Number (01-36)
+                      </label>
+                      <input
+                        type="text"
+                        maxLength="2"
+                        value={runway}
+                        onChange={(e) => setRunway(e.target.value.replace(/\D/g, ''))}
+                        className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg ${
+                          errors.runway ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        placeholder="27"
+                      />
+                      {errors.runway && (
+                        <p className="text-red-500 text-sm mt-1">{errors.runway}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Wind Direction (degrees)
+                      </label>
+                      <input
+                        type="text"
+                        maxLength="3"
+                        value={windDir}
+                        onChange={(e) => setWindDir(e.target.value.replace(/\D/g, ''))}
+                        className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg ${
+                          errors.windDir ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        placeholder="240"
+                      />
+                      {errors.windDir && (
+                        <p className="text-red-500 text-sm mt-1">{errors.windDir}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Wind Speed (knots, 0-50)
+                      </label>
+                      <input
+                        type="text"
+                        maxLength="2"
+                        value={windSpeed}
+                        onChange={(e) => setWindSpeed(e.target.value.replace(/\D/g, ''))}
+                        className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg ${
+                          errors.windSpeed ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        placeholder="15"
+                      />
+                      {errors.windSpeed && (
+                        <p className="text-red-500 text-sm mt-1">{errors.windSpeed}</p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={calculateCrosswind}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                      >
+                        <Wind />
+                        Calculate
+                      </button>
+                      <button
+                        onClick={reset}
+                        className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition-colors duration-200"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+
+                  {results && (
+                    <div className="bg-gray-50 p-6 border-t-2 border-gray-200">
+                      {results.isTailwind && (
+                        <div className="bg-red-100 border-l-4 border-red-500 p-4 mb-4 flex items-start gap-3">
+                          <AlertTriangle />
+                          <div>
+                            <h3 className="font-bold text-red-800 text-lg">⚠️ CAUTION: TAILWIND</h3>
+                            <p className="text-red-700 mt-1">
+                              Tailwind component: <span className="font-semibold">{Math.abs(results.headwind)} knots</span>
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-4">
+                        <div className="bg-white p-4 rounded-lg shadow">
+                          <h3 className="text-sm font-semibold text-gray-600 mb-1">
+                            {results.isTailwind ? 'Tailwind' : 'Headwind'} Component
+                          </h3>
+                          <p className="text-3xl font-bold text-gray-800">
+                            {Math.abs(results.headwind)} <span className="text-lg text-gray-600">knots</span>
+                          </p>
+                        </div>
+
+                        <div className="bg-white p-4 rounded-lg shadow">
+                          <h3 className="text-sm font-semibold text-gray-600 mb-1">Crosswind Component</h3>
+                          <p className="text-3xl font-bold text-gray-800">
+                            {results.crosswind} <span className="text-lg text-gray-600">knots</span>
+                          </p>
+                          <p className="text-sm text-gray-600 mt-2">{results.crosswindDirection}</p>
+                        </div>
+
+                        <div className="bg-white p-4 rounded-lg shadow">
+                          <h3 className="text-sm font-semibold text-gray-600 mb-1">Wind Angle</h3>
+                          <p className="text-3xl font-bold text-gray-800">
+                            {results.angle}° <span className="text-lg text-gray-600">relative to runway</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-6 text-center text-blue-100 text-sm">
+                  <p>Enter runway number, wind direction, and speed to calculate crosswind components</p>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        ReactDOM.render(<CrosswindCalculator />, document.getElementById('root'));
+    </script>
+</body>
+</html>
