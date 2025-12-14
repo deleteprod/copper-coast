@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Great Circle Distance Calculator</title>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // Inline SVG icons
+        const Globe = () => (
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+        );
+
+        const MapPin = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+        );
+
+        const Navigation = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+            </svg>
+        );
+
+        const DistanceCalculator = () => {
+            const [originLat, setOriginLat] = useState('');
+            const [originLon, setOriginLon] = useState('');
+            const [destLat, setDestLat] = useState('');
+            const [destLon, setDestLon] = useState('');
+            const [results, setResults] = useState(null);
+            const [errors, setErrors] = useState({});
+
+            const validateCoordinate = (lat, lon, type) => {
+                const errors = {};
+                const latNum = parseFloat(lat);
+                const lonNum = parseFloat(lon);
+
+                if (isNaN(latNum)) {
+                    errors[`${type}Lat`] = "Please enter a valid number";
+                } else if (latNum < -90 || latNum > 90) {
+                    errors[`${type}Lat`] = "Latitude must be between -90 and 90";
+                }
+
+                if (isNaN(lonNum)) {
+                    errors[`${type}Lon`] = "Please enter a valid number";
+                } else if (lonNum < -180 || lonNum > 180) {
+                    errors[`${type}Lon`] = "Longitude must be between -180 and 180";
+                }
+
+                return errors;
+            };
+
+            const toRadians = (degrees) => degrees * (Math.PI / 180);
+            const toDegrees = (radians) => radians * (180 / Math.PI);
+
+            const haversineDistance = (lat1, lon1, lat2, lon2) => {
+                const lat1Rad = toRadians(lat1);
+                const lon1Rad = toRadians(lon1);
+                const lat2Rad = toRadians(lat2);
+                const lon2Rad = toRadians(lon2);
+
+                const dLat = lat2Rad - lat1Rad;
+                const dLon = lon2Rad - lon1Rad;
+
+                const a = Math.sin(dLat / 2) ** 2 + 
+                         Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(dLon / 2) ** 2;
+                const c = 2 * Math.asin(Math.sqrt(a));
+
+                return {
+                    kilometers: (c * 6371.0).toFixed(3),
+                    statuteMiles: (c * 3959.0).toFixed(3),
+                    nauticalMiles: (c * 3440.1).toFixed(3)
+                };
+            };
+
+            const calculateBearing = (lat1, lon1, lat2, lon2) => {
+                const lat1Rad = toRadians(lat1);
+                const lon1Rad = toRadians(lon1);
+                const lat2Rad = toRadians(lat2);
+                const lon2Rad = toRadians(lon2);
+
+                const dLon = lon2Rad - lon1Rad;
+
+                const x = Math.sin(dLon) * Math.cos(lat2Rad);
+                const y = Math.cos(lat1Rad) * Math.sin(lat2Rad) - 
+                         Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+
+                let bearing = Math.atan2(x, y);
+                bearing = toDegrees(bearing);
+                bearing = (bearing + 360) % 360;
+
+                return bearing.toFixed(1);
+            };
+
+            const formatCoordinate = (lat, lon) => {
+                const latDir = lat >= 0 ? 'N' : 'S';
+                const lonDir = lon >= 0 ? 'E' : 'W';
+                return `${Math.abs(lat).toFixed(3)}°${latDir}, ${Math.abs(lon).toFixed(3)}°${lonDir}`;
+            };
+
+            const calculate = () => {
+                const originErrors = validateCoordinate(originLat, originLon, 'origin');
+                const destErrors = validateCoordinate(destLat, destLon, 'dest');
+                const allErrors = { ...originErrors, ...destErrors };
+
+                if (Object.keys(allErrors).length > 0) {
+                    setErrors(allErrors);
+                    setResults(null);
+                    return;
+                }
+
+                setErrors({});
+
+                const lat1 = parseFloat(originLat);
+                const lon1 = parseFloat(originLon);
+                const lat2 = parseFloat(destLat);
+                const lon2 = parseFloat(destLon);
+
+                const distances = haversineDistance(lat1, lon1, lat2, lon2);
+                const bearing = calculateBearing(lat1, lon1, lat2, lon2);
+
+                setResults({
+                    origin: formatCoordinate(lat1, lon1),
+                    destination: formatCoordinate(lat2, lon2),
+                    ...distances,
+                    bearing
+                });
+            };
+
+            const reset = () => {
+                setOriginLat('');
+                setOriginLon('');
+                setDestLat('');
+                setDestLon('');
+                setResults(null);
+                setErrors({});
+            };
+
+            const loadExample = () => {
+                // London to New York
+                setOriginLat('51.5074');
+                setOriginLon('-0.1278');
+                setDestLat('40.7128');
+                setDestLon('-74.0060');
+            };
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-teal-800 to-cyan-900 p-4 md:p-8">
+                    <div className="max-w-4xl mx-auto">
+                        <div className="bg-white rounded-lg shadow-2xl overflow-hidden">
+                            {/* Header */}
+                            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <Globe />
+                                    <h1 className="text-3xl font-bold">Great Circle Distance Calculator</h1>
+                                </div>
+                                <p className="text-emerald-100">Calculate the shortest distance between two points on Earth using the Haversine formula</p>
+                            </div>
+
+                            {/* Input Section */}
+                            <div className="p-6">
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    {/* Origin */}
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-2 text-emerald-700 font-semibold text-lg mb-3">
+                                            <MapPin />
+                                            <h2>Origin</h2>
+                                        </div>
+                                        
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                Latitude (-90 to 90)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={originLat}
+                                                onChange={(e) => setOriginLat(e.target.value)}
+                                                className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                                                    errors.originLat ? 'border-red-500' : 'border-gray-300'
+                                                }`}
+                                                placeholder="51.5074"
+                                            />
+                                            {errors.originLat && (
+                                                <p className="text-red-500 text-sm mt-1">{errors.originLat}</p>
+                                            )}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                Longitude (-180 to 180)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={originLon}
+                                                onChange={(e) => setOriginLon(e.target.value)}
+                                                className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                                                    errors.originLon ? 'border-red-500' : 'border-gray-300'
+                                                }`}
+                                                placeholder="-0.1278"
+                                            />
+                                            {errors.originLon && (
+                                                <p className="text-red-500 text-sm mt-1">{errors.originLon}</p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Destination */}
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-2 text-teal-700 font-semibold text-lg mb-3">
+                                            <MapPin />
+                                            <h2>Destination</h2>
+                                        </div>
+                                        
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                Latitude (-90 to 90)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={destLat}
+                                                onChange={(e) => setDestLat(e.target.value)}
+                                                className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                                                    errors.destLat ? 'border-red-500' : 'border-gray-300'
+                                                }`}
+                                                placeholder="40.7128"
+                                            />
+                                            {errors.destLat && (
+                                                <p className="text-red-500 text-sm mt-1">{errors.destLat}</p>
+                                            )}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                                Longitude (-180 to 180)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={destLon}
+                                                onChange={(e) => setDestLon(e.target.value)}
+                                                className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+                                                    errors.destLon ? 'border-red-500' : 'border-gray-300'
+                                                }`}
+                                                placeholder="-74.0060"
+                                            />
+                                            {errors.destLon && (
+                                                <p className="text-red-500 text-sm mt-1">{errors.destLon}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Buttons */}
+                                <div className="flex flex-wrap gap-3 mt-6">
+                                    <button
+                                        onClick={calculate}
+                                        className="flex-1 min-w-[200px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                                    >
+                                        <Navigation />
+                                        Calculate Distance
+                                    </button>
+                                    <button
+                                        onClick={loadExample}
+                                        className="px-6 py-3 bg-teal-100 hover:bg-teal-200 text-teal-700 font-semibold rounded-lg transition-colors duration-200"
+                                    >
+                                        Load Example
+                                    </button>
+                                    <button
+                                        onClick={reset}
+                                        className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition-colors duration-200"
+                                    >
+                                        Reset
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Results Section */}
+                            {results && (
+                                <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 border-t-2 border-gray-200">
+                                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Results</h2>
+                                    
+                                    <div className="grid md:grid-cols-2 gap-4 mb-6">
+                                        <div className="bg-white p-4 rounded-lg shadow">
+                                            <h3 className="text-sm font-semibold text-emerald-600 mb-1">Origin</h3>
+                                            <p className="text-lg text-gray-800">{results.origin}</p>
+                                        </div>
+                                        <div className="bg-white p-4 rounded-lg shadow">
+                                            <h3 className="text-sm font-semibold text-teal-600 mb-1">Destination</h3>
+                                            <p className="text-lg text-gray-800">{results.destination}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white p-4 rounded-lg shadow mb-4">
+                                        <h3 className="text-sm font-semibold text-gray-600 mb-1">Initial Bearing</h3>
+                                        <p className="text-3xl font-bold text-gray-800">
+                                            {results.bearing}° <span className="text-lg text-gray-600">true</span>
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="bg-white p-4 rounded-lg shadow flex justify-between items-center">
+                                            <div>
+                                                <h3 className="text-sm font-semibold text-gray-600">Kilometers</h3>
+                                                <p className="text-2xl font-bold text-gray-800">{results.kilometers}</p>
+                                            </div>
+                                            <span className="text-gray-400 text-lg">km</span>
+                                        </div>
+
+                                        <div className="bg-white p-4 rounded-lg shadow flex justify-between items-center">
+                                            <div>
+                                                <h3 className="text-sm font-semibold text-gray-600">Statute Miles</h3>
+                                                <p className="text-2xl font-bold text-gray-800">{results.statuteMiles}</p>
+                                            </div>
+                                            <span className="text-gray-400 text-lg">mi</span>
+                                        </div>
+
+                                        <div className="bg-white p-4 rounded-lg shadow flex justify-between items-center">
+                                            <div>
+                                                <h3 className="text-sm font-semibold text-gray-600">Nautical Miles</h3>
+                                                <p className="text-2xl font-bold text-gray-800">{results.nauticalMiles}</p>
+                                            </div>
+                                            <span className="text-gray-400 text-lg">NM</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Info Footer */}
+                        <div className="mt-6 text-center text-emerald-100 text-sm">
+                            <p>Enter coordinates in decimal degrees format</p>
+                            <p className="mt-1">Negative values: South latitude, West longitude</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<DistanceCalculator />, document.getElementById('root'));
+    </script>
+</body>
+</html>
